@@ -1,4 +1,17 @@
-function Do-Progress([int]$count,[int]$total, [int]$started) {
+<#
+.synopsis
+    - shows a colored loading bar in the powershell window
+.description
+    - same as retryW's version, but with the numbers at the end optionally removed
+.parameter ShowStats
+    - If this flag is used, the original numbers are shown at the end of the bar
+.notes
+    - Author: retyW
+    - Modified by: Ben Renninson
+    - Email: ben@goldensyrupgames.com
+    - From: https://github.com/GSGBen/Do-Progress
+#>
+function Do-Progress([int]$count,[int]$total, [int]$started, [switch]$ShowStats) {
     # Calculate percentage
     [int]$percentComplete = 100 / $total * $count
     # Keep the actual percentage for displaying number on screen
@@ -105,17 +118,64 @@ function Do-Progress([int]$count,[int]$total, [int]$started) {
     Write-Host $incompleteBarPost -BackgroundColor Red -ForegroundColor Red -NoNewline
     Write-Host "]" -NoNewline -BackgroundColor Black
 
-    # Append the stats to the end of the loading bar
-    if ($started) {
-        Write-Host " Completed: $count, Started: $started, Total: $total" -NoNewline #"`r"
-    } else {
-        Write-Host " Completed: $count, Total: $total" -NoNewline #"`r"
+    # Append the stats to the end of the loading bar, if specified
+    if ($ShowStats)
+    {
+        if ($started) {
+            Write-Host " Completed: $count, Started: $started, Total: $total" -NoNewline #"`r"
+        } else {
+            Write-Host " Completed: $count, Total: $total" -NoNewline #"`r"
+        }
     }
+
     if($count -eq $total){
         # Go to new line, so external script doesn't write over the bar or on same line
         # Write another line so there's an empty line after the loading bar. Looks far cleaner.
         Write-Host ""
         Write-Host ""
+    }
+
+}
+
+<#
+.synopsis
+    - runs Do-Progess over a specified length
+.description
+    - helper function that handles a simple time loop of Do-Progress
+    - doesn't really work like a proper timer due to screen-writing delays and such.
+      If you're using this for a visual thing, test it on your target platform.
+      Can kind of think in milliseconds.
+.parameter Total
+    - total amount to run over
+.parameter Interval
+    - the number to increment per run, and the milliseconds to sleep for per run
+.parameter YellowMultiplier
+    - how many intervals ahead of the green bar you want the yellow bar to be
+.parameter ShowStats
+    - If this flag is used, the original numbers are shown at the end of the bar
+.notes
+    - Author: Ben Renninson
+    - Email: ben@goldensyrupgames.com
+    - From: https://github.com/GSGBen/Do-Progress
+#>
+function Loop-Progress
+{
+    Param
+    (
+        [Parameter(Mandatory=$true)][int]$Total,
+        [Parameter(Mandatory=$true)][int]$Interval,
+        [Parameter(Mandatory=$false)][int]$YellowMultiplier = 0,
+        [Parameter(Mandatory=$false)][switch]$ShowStats
+    )
+
+    for ([int]$Count = 0; $Count -le $Total; $Count +=$Interval)
+    {
+        # 'started' is the term the original function uses to show the number of items in the count you've started, i.e. the yellow bar
+        # it doesn't refer to where the current run is starting from
+        # e.g. total = 100, count = 10, started = 20 means the bar is green up to 10, yellow up to 20, then red up to 100
+        $Started = [math]::Min($Count + ($Interval * $YellowMultiplier), $Total)
+        Do-Progress -count $Count -total $Total -started $Started -ShowStats:$ShowStats
+        Start-Sleep -Milliseconds $Interval
     }
 }
 
